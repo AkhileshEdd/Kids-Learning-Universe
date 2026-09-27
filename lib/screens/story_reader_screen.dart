@@ -81,6 +81,7 @@ class _StoryReaderScreenState extends State<StoryReaderScreen> with MusicAware {
     final text = widget.book.pages[_page].text(_spanish);
     final words = _words(text);
     setState(() => _highlight = -1);
+    final started = DateTime.now();
     await _speech.say(
       text,
       language: _lang,
@@ -93,7 +94,10 @@ class _StoryReaderScreenState extends State<StoryReaderScreen> with MusicAware {
     if (!mounted || session != _session) return;
     setState(() => _highlight = -1);
     if (_readToMe) {
-      await Future<void>.delayed(const Duration(milliseconds: 900));
+      // Give every page enough time to look at, even with the voice off.
+      final minimum = Duration(milliseconds: 1500 + text.length * 45);
+      final spent = DateTime.now().difference(started);
+      await Future<void>.delayed(spent < minimum ? minimum - spent : const Duration(milliseconds: 900));
       if (!mounted || session != _session) return;
       _go(1);
     }

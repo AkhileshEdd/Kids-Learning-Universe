@@ -84,6 +84,8 @@ class _HomeScreenState extends State<HomeScreen> with MusicAware {
           child: LayoutBuilder(
             builder: (context, c) {
               final compact = c.maxHeight < 420;
+              // Grow the left panel on tablets.
+              final scale = (c.maxHeight / 400).clamp(1.0, 1.5);
               return Column(
                 children: [
                   _TopBar(profile: profile),
@@ -92,10 +94,16 @@ class _HomeScreenState extends State<HomeScreen> with MusicAware {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         SizedBox(
-                          width: min(320, c.maxWidth * 0.36),
+                          width: min(320 * scale, c.maxWidth * 0.36),
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(16, 4, 8, 12),
-                            child: _AdventurePanel(profile: profile, talk: _talk, compact: compact, onCosmoTap: () => _greet(force: true)),
+                            child: _AdventurePanel(
+                              profile: profile,
+                              talk: _talk,
+                              compact: compact,
+                              scale: scale,
+                              onCosmoTap: () => _greet(force: true),
+                            ),
                           ),
                         ),
                         Expanded(child: _PlanetStrip(onOpen: _openSubject, height: c.maxHeight - 70)),
@@ -180,11 +188,18 @@ class _TopBar extends StatelessWidget {
 }
 
 class _AdventurePanel extends StatelessWidget {
-  const _AdventurePanel({required this.profile, required this.talk, required this.compact, required this.onCosmoTap});
+  const _AdventurePanel({
+    required this.profile,
+    required this.talk,
+    required this.compact,
+    required this.scale,
+    required this.onCosmoTap,
+  });
 
   final ChildProfile profile;
   final TalkingController talk;
   final bool compact;
+  final double scale;
   final VoidCallback onCosmoTap;
 
   @override
@@ -206,7 +221,7 @@ class _AdventurePanel extends StatelessWidget {
                   valueListenable: talk,
                   builder: (context, talking, _) => Critter(
                     id: CharacterId.cosmo,
-                    size: compact ? 92 : 120,
+                    size: compact ? 92 : 120 * scale,
                     talking: talking,
                     wave: talking,
                     mood: adventure.complete ? CritterMood.happy : CritterMood.idle,
@@ -221,7 +236,7 @@ class _AdventurePanel extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Text(
                       adventure.complete ? 'You finished today’s adventure! 🏆' : 'Hi ${profile.name}! Let’s explore! ✨',
-                      style: KidText.display(compact ? 15 : 17, weight: FontWeight.w600),
+                      style: KidText.display(compact ? 15 : 17 * scale, weight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -248,7 +263,7 @@ class _AdventurePanel extends StatelessWidget {
                     const Floating(distance: 3, child: EmojiText('🚀', size: 30)),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text("Today's Adventure", style: KidText.display(compact ? 19 : 22, color: Colors.white)),
+                      child: Text("Today's Adventure", style: KidText.display(compact ? 19 : 22 * scale, color: Colors.white)),
                     ),
                   ],
                 ),
@@ -256,7 +271,7 @@ class _AdventurePanel extends StatelessWidget {
                 Row(
                   children: [
                     for (final step in adventure.steps)
-                      Expanded(child: _StepDot(step: step, done: adventure.done.contains(step))),
+                      Expanded(child: _StepDot(step: step, done: adventure.done.contains(step), size: 44 * scale)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -267,7 +282,7 @@ class _AdventurePanel extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Text(
                     adventure.complete ? 'All done! 🏆' : (done == 0 ? "Let's go!" : 'Keep going! $done/$total'),
-                    style: KidText.display(18, color: const Color(0xFFE8730C)),
+                    style: KidText.display(18 * scale, color: const Color(0xFFE8730C)),
                   ),
                 ),
               ],
@@ -280,24 +295,25 @@ class _AdventurePanel extends StatelessWidget {
 }
 
 class _StepDot extends StatelessWidget {
-  const _StepDot({required this.step, required this.done});
+  const _StepDot({required this.step, required this.done, required this.size});
   final String step;
   final bool done;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final emoji = stepEmoji(step);
     return Center(
       child: Container(
-        width: 44,
-        height: 44,
+        width: size,
+        height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: done ? AppColors.success : Colors.white.withValues(alpha: 0.35),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 2.5),
         ),
-        child: done ? const Icon(Icons.check_rounded, color: Colors.white, size: 26) : EmojiText(emoji, size: 22),
+        child: done ? Icon(Icons.check_rounded, color: Colors.white, size: size * 0.6) : EmojiText(emoji, size: size * 0.5),
       ),
     );
   }

@@ -9,6 +9,7 @@ import 'package:kids_learning_universe/premium/premium_service.dart';
 import 'package:kids_learning_universe/screens/home_screen.dart';
 import 'package:kids_learning_universe/screens/quiz_screen.dart';
 import 'package:kids_learning_universe/state/app_state.dart';
+import 'package:kids_learning_universe/widgets/bubbly_button.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -71,5 +72,33 @@ void main() {
       expect(tester.takeException(), isNull, reason: a.id);
       await tester.pumpWidget(const SizedBox());
     }
+  });
+
+  testWidgets('a child can play a whole quiz and reach the reward screen', (tester) async {
+    tester.view.physicalSize = const Size(1830, 824);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final (state, premium) = await _services();
+    state.addProfile(name: 'Maya', avatar: '🦄', grade: Grade.preschool);
+    final activity = activityById('colors')!;
+    await tester.pumpWidget(_wrap(state, premium, QuizScreen(activity: activity, grade: Grade.preschool)));
+    await tester.pump(const Duration(milliseconds: 800));
+
+    for (var round = 0; round < Grade.preschool.rounds; round++) {
+      final choices = find.descendant(of: find.byType(Wrap), matching: find.byType(BubblyButton));
+      expect(choices, findsWidgets, reason: 'round $round');
+      // Tapping every card: wrong ones are marked, the right one solves it.
+      for (final element in choices.evaluate().toList()) {
+        await tester.tap(find.byWidget(element.widget), warnIfMissed: false);
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+    }
+    expect(find.text('Great job!'), findsOneWidget);
+    expect(state.active!.plays['colors'], 1);
+    expect(state.active!.stickers, hasLength(1));
+    await tester.pumpWidget(const SizedBox());
   });
 }

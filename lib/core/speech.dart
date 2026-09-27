@@ -86,7 +86,11 @@ class SpeechService {
       _progress = onProgress;
       await _tts.stop();
       await _useLanguage(language ?? englishLocale);
-      await _tts.speak(text);
+      // Some engines never report completion after an error; don't wait forever.
+      await _tts.speak(text).timeout(
+        Duration(milliseconds: 3000 + text.length * 120),
+        onTimeout: () => null,
+      );
     } catch (e) {
       debugPrint('TTS error: $e');
     }
