@@ -1,0 +1,51 @@
+name: kids_learning_universe
+description: "Kids Learning Universe - fun learning games for preschool to 2nd grade"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.5+1
+  shared_preferences: ^2.5.5
+  flutter_tts: ^4.2.5
+  audioplayers: ^6.8.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/sfx/
+    - assets/music/
+
+  fonts:
+    - family: Fredoka
+      fonts:
+        - asset: assets/fonts/Fredoka-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Fredoka-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Fredoka-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Fredoka-Bold.ttf
+          weight: 700
+    # Andika is designed for beginning readers (single-storey "a" and "g").
+    - family: Andika
+      fonts:
+        - asset: assets/fonts/Andika-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Andika-Bold.ttf
+          weight: 700
+    # Bundled so every child sees the same pictures, even on older phones.
+    - family: NotoColorEmoji
+      fonts:
+        - asset: assets/fonts/NotoColorEmoji.ttf

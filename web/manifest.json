@@ -1,0 +1,35 @@
+{
+  "name": "Kids Learning Universe",
+  "short_name": "Learning Universe",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#120B3A",
+  "theme_color": "#2A1A6E",
+  "description": "Fun learning games, phonics, math and storybooks for kids from preschool to 2nd grade.",
+  "orientation": "landscape",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/Icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
