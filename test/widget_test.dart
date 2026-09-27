@@ -82,20 +82,27 @@ void main() {
     state.addProfile(name: 'Maya', avatar: '🦄', grade: Grade.preschool);
     final activity = activityById('colors')!;
     await tester.pumpWidget(_wrap(state, premium, QuizScreen(activity: activity, grade: Grade.preschool)));
-    await tester.pump(const Duration(milliseconds: 800));
+    // Let the intro and pop-in animations run (one pump = one frame).
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
 
-    for (var round = 0; round < Grade.preschool.rounds; round++) {
-      final choices = find.descendant(of: find.byType(Wrap), matching: find.byType(BubblyButton));
-      expect(choices, findsWidgets, reason: 'round $round');
+    Finder choices() => find.descendant(of: find.byType(Wrap), matching: find.byType(BubblyButton));
+    var rounds = 0;
+    while (find.text('Great job!').evaluate().isEmpty && rounds < Grade.preschool.rounds * 2) {
+      rounds++;
+      final count = choices().evaluate().length;
+      expect(count, greaterThanOrEqualTo(2), reason: 'round $rounds');
       // Tapping every card: wrong ones are marked, the right one solves it.
-      for (final element in choices.evaluate().toList()) {
-        await tester.tap(find.byWidget(element.widget), warnIfMissed: false);
+      for (var i = 0; i < count; i++) {
+        await tester.tap(choices().at(i));
         await tester.pump(const Duration(milliseconds: 50));
       }
-      for (var i = 0; i < 6; i++) {
-        await tester.pump(const Duration(milliseconds: 500));
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
       }
     }
+    expect(rounds, Grade.preschool.rounds);
     expect(find.text('Great job!'), findsOneWidget);
     expect(state.active!.plays['colors'], 1);
     expect(state.active!.stickers, hasLength(1));
