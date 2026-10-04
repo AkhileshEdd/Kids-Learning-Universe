@@ -12,12 +12,31 @@ on:
         description: 'Only when the signing secrets are not set up: publish the unsigned build as a temporary pre-release so it can be signed by hand'
         type: boolean
         default: false
+      cleanup_only:
+        description: 'Only delete temporary unsigned pre-releases'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
+  cleanup:
+    if: ${{ inputs.cleanup_only }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete temporary unsigned pre-releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for tag in $(gh release list --limit 100 --json tagName -q '.[].tagName' | grep '^unsigned-' || true); do
+            echo "Deleting $tag"
+            gh release delete "$tag" --yes --cleanup-tag
+          done
+
   release:
+    if: ${{ !inputs.cleanup_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -119,6 +138,10 @@ jobs:
           gh release create "$tag" dist/* --draft --target "$GITHUB_SHA" \
             --title "Kids Learning Universe ${{ steps.version.outputs.name }} (build ${{ steps.version.outputs.code }})" \
             --notes "Signed with the upload key. Upload the .aab to Google Play; the .apk is for installing directly on a test phone."
+          # Temporary unsigned builds are no longer needed.
+          for old in $(gh release list --limit 100 --json tagName -q '.[].tagName' | grep '^unsigned-' || true); do
+            gh release delete "$old" --yes --cleanup-tag
+          done
 
       - name: Publish temporary unsigned pre-release
         if: steps.signing.outputs.signed != 'true'
