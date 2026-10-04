@@ -32,6 +32,8 @@ Free includes the core games in every subject and grade, 7 books, 3 sticker
 packs, 4 coloring pages and 1 child profile. Premium unlocks 9 extra games,
 6 extra books, 4 extra sticker packs, all coloring pages and up to 5 profiles.
 Premium items show a gold lock; tapping one asks the child to get a grown-up.
+Premium is sold as a monthly or yearly subscription or a lifetime unlock,
+all billed by Google Play (see below).
 
 ## Running the app
 
@@ -73,23 +75,84 @@ The application ID is `com.kidslearninguniverse.app` (it can't change after
 the first upload to Google Play, so change it now if you want a different one:
 `android/app/build.gradle.kts` and the `MainActivity.kt` package).
 
-## In-app purchases (next step)
+## Premium with Google Play Billing
 
-The app is already structured for Premium:
+Premium is sold through Google Play using Google's official
+[`in_app_purchase`](https://pub.dev/packages/in_app_purchase) plugin. Google
+Play takes the payment, handles taxes, receipts, renewals, refunds and
+cancellations; the app only asks Play what the family owns.
 
-- `lib/premium/premium_service.dart` holds the entitlement for the whole app
-  and exposes `products`, `purchase()`, `restore()` and `isPremium`.
-- All store access goes through the `PurchaseBackend` interface. Today the app
-  uses `TestPurchaseBackend`, which simulates purchases (the paywall shows a
-  "Test mode" banner, and Grown-ups → Premium has a switch to turn it off again).
-- Product IDs to create in the Google Play Console:
-  `klu_premium_monthly`, `klu_premium_yearly` (subscriptions) and
-  `klu_premium_lifetime` (one-time product).
+| Plan | Play Console product type | Product ID | Base plan ID |
+| --- | --- | --- | --- |
+| Monthly | Subscription | `klu_premium_monthly` | `monthly` (renews every month) |
+| Yearly | Subscription | `klu_premium_yearly` | `yearly` (renews every year) |
+| Lifetime | One-time product | `klu_premium_lifetime` | — |
 
-To go live, add the `in_app_purchase` plugin, implement a
-`GooglePlayPurchaseBackend` against the same interface, and pass it to
-`PremiumService` in `lib/main.dart`. The paywall, locks and parental gate
-don't need to change.
+What the app does (`lib/premium/`):
+
+- Shows the plans with the **prices from Google Play** in the parent's local
+  currency, a "Save N%" badge on yearly, and any **free trial or intro offer**
+  you configure in the Console (e.g. "Start 7-day free trial").
+- Opens Google Play's purchase sheet, then **acknowledges** every purchase
+  (Play refunds purchases that aren't acknowledged within 3 days).
+- Handles **pending payments** (e.g. cash at a store): Premium unlocks once
+  Play confirms them, even if the app was closed.
+- Lets subscribers **switch monthly ↔ yearly** (Play replaces the old
+  subscription with proration) or upgrade to lifetime (the app then reminds
+  them to cancel the old subscription).
+- Re-checks the entitlement at start-up and whenever the app returns to the
+  foreground, so **expired, cancelled-and-ended or refunded** subscriptions
+  lock again. Offline, the last known state is kept.
+- **Restore purchases** and **Manage subscription** (opens Google Play's
+  subscription page) in the paywall and Grown-ups → Premium.
+- The paywall and all purchase buttons sit behind the parental gate.
+
+### Setting up the products in the Google Play Console
+
+1. **Create the app** in the [Play Console](https://play.google.com/console)
+   with the package name `com.kidslearninguniverse.app`. Under *App content →
+   Target audience*, select the children's age groups (this enrolls the app in
+   Google Play's Families policy) and add a privacy policy URL.
+2. **Upload a build** to *Testing → Internal testing*: run
+   `flutter build appbundle --release` with your upload key (see *Release
+   signing* above) or use the AAB from the GitHub Actions artifacts once it is
+   signed with your key. Play only lets you create products after a build that
+   uses Play Billing has been uploaded.
+3. **Monetize → Products → Subscriptions → Create subscription**
+   - Product ID `klu_premium_monthly`, then *Add base plan*: ID `monthly`,
+     auto-renewing, billing period 1 month, set the price, **Activate**.
+   - Product ID `klu_premium_yearly`, base plan ID `yearly`, billing period
+     1 year, set the price, **Activate**.
+   - Optional: inside a base plan, *Add offer* → e.g. a 7-day free trial for
+     new customers. The app shows it automatically.
+4. **Monetize → Products → One-time products → Create**: product ID
+   `klu_premium_lifetime`, set the price, **Activate**.
+5. **Setup → License testing**: add the Gmail addresses of your testers.
+   Their purchases use test cards and aren't charged; test subscriptions renew
+   every few minutes so you can watch renewals and expiry.
+6. Install the app from the internal testing link on a phone signed in with a
+   tester account, then try: buy, cancel the sheet, switch plans, restore,
+   and cancel from Google Play.
+
+Product IDs can't be reused once created, so keep them exactly as above (or
+change them in `lib/premium/premium_service.dart` first).
+
+### Trying Premium without the Play Console
+
+Build with `--dart-define=TEST_STORE=true` (for example
+`flutter run --dart-define=TEST_STORE=true`) to use a simulated store: the
+paywall shows a "Test mode" banner, purchases succeed instantly and nothing is
+charged, and Grown-ups → Premium has a button to turn Premium off again. Web
+previews and the automated tests always use the simulated store.
+
+### Good to know
+
+- Purchases are checked on the device against Google Play. For stronger
+  protection against tampered apps you can later add a small server that
+  verifies purchase tokens with the Google Play Developer API and receives
+  real-time developer notifications.
+- Subscriptions in a grace period stay active; subscriptions on account hold
+  or paused lock Premium until the payment is fixed.
 
 ## Project structure
 
@@ -99,7 +162,7 @@ lib/
   core/                        theme, text-to-speech, sounds, routes, helpers
   models/                      child profile, progress, settings, grades
   state/app_state.dart         profiles, progress, rewards, daily adventure, limits (saved on device)
-  premium/                     premium entitlement + purchase backends
+  premium/                     Premium entitlement, Google Play Billing backend, simulated store
   content/
     activities.dart            the activity catalog (subject, grades, free/premium)
     generators/                question generators for reading, math and thinking

@@ -55,8 +55,9 @@ class _PreviewLauncherState extends State<PreviewLauncher> {
     final state = context.read<AppState>();
     final premium = context.read<PremiumService>();
     final grade = Grade.values.firstWhere((g) => g.name == q['grade'], orElse: () => Grade.kindergarten);
-    if (q['premium'] == '1' && !premium.isPremium && premium.products.isNotEmpty) {
-      await premium.purchase(premium.products.first);
+    if (q['premium'] == '1' && !premium.isPremium) {
+      if (premium.products.isEmpty) await premium.retry();
+      if (premium.products.isNotEmpty) await premium.purchase(premium.products.first);
     }
     final target = q['screen'] ?? 'home';
     if (target != 'onboarding' && target != 'splash' && !state.hasProfiles) {

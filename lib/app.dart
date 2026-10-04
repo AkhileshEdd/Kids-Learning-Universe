@@ -57,6 +57,8 @@ class _KidsLearningUniverseAppState extends State<KidsLearningUniverseApp> with 
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
     widget.sound.onAppLifecycle(foreground: _foreground);
+    // A subscription may have been cancelled, renewed or refunded meanwhile.
+    if (state == AppLifecycleState.resumed) widget.premium.refresh();
     if (!_foreground) {
       widget.speech.stop();
       widget.appState.saveNow();

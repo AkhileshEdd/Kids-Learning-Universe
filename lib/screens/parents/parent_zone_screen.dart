@@ -596,6 +596,8 @@ class _PremiumTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final premium = context.watch<PremiumService>();
+    final plan = premium.plan;
+    final planName = plan == null ? null : (premium.productFor(plan)?.title ?? plan.name);
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -610,20 +612,27 @@ class _PremiumTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(premium.isPremium ? 'Premium is active' : 'Free plan', style: KidText.display(20)),
+                    Text(
+                      switch (plan) {
+                        null => 'Free plan',
+                        PremiumPlan.lifetime => 'Premium for life',
+                        _ => 'Premium: $planName subscription',
+                      },
+                      style: KidText.display(20),
+                    ),
                     Text(
                       premium.isPremium
-                          ? 'All games, books, sticker packs and profiles are unlocked.'
-                          : 'Upgrade to unlock every game, book and sticker pack.',
+                          ? 'All games, books, sticker packs and profiles are unlocked. Billing is handled by Google Play.'
+                          : 'Upgrade to unlock every game, book and sticker pack. Payments go through Google Play.',
                       style: KidText.body(14, color: AppColors.inkSoft),
                     ),
                   ],
                 ),
               ),
-              if (!premium.isPremium)
+              if (plan != PremiumPlan.lifetime)
                 FilledButton(
                   onPressed: () => pushScreen(context, const PaywallScreen()),
-                  child: const Text('See plans'),
+                  child: Text(plan == null ? 'See plans' : 'Change plan'),
                 ),
             ],
           ),
@@ -631,20 +640,33 @@ class _PremiumTab extends StatelessWidget {
         const SizedBox(height: 10),
         Wrap(
           spacing: 10,
+          runSpacing: 10,
           children: [
             OutlinedButton.icon(
               onPressed: premium.busy
                   ? null
                   : () async {
-                      final ok = await premium.restore();
+                      final result = await premium.restore();
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(ok ? 'Purchases restored!' : 'No previous purchase found.')),
+                        SnackBar(
+                          content: Text(switch (result) {
+                            true => 'Premium restored! 🎉',
+                            false => 'No Premium purchase found for this Google account.',
+                            null => 'Couldn’t reach Google Play. Check your connection and try again.',
+                          }),
+                        ),
                       );
                     },
               icon: const Icon(Icons.restore_rounded),
               label: const Text('Restore purchases'),
             ),
+            if (premium.hasSubscription)
+              OutlinedButton.icon(
+                onPressed: () => openManageSubscriptions(context, premium),
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Manage or cancel subscription'),
+              ),
             if (premium.isTestMode && premium.isPremium)
               OutlinedButton.icon(
                 onPressed: premium.resetTestPurchase,
@@ -652,6 +674,12 @@ class _PremiumTab extends StatelessWidget {
                 label: const Text('Test mode: turn Premium off'),
               ),
           ],
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Premium is linked to the Google account used in the Play Store, so it also works on your other '
+          'Android devices. Subscriptions renew automatically until cancelled in Google Play.',
+          style: KidText.body(13, color: AppColors.inkSoft),
         ),
       ],
     );
