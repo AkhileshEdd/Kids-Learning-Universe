@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../../content/activities.dart';
@@ -727,7 +728,13 @@ class _AboutTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Text('Version 1.0.0', style: KidText.body(13, color: AppColors.inkSoft)),
+        FutureBuilder<PackageInfo>(
+          future: PackageInfo.fromPlatform(),
+          builder: (context, snap) => Text(
+            snap.hasData ? 'Version ${snap.data!.version} (build ${snap.data!.buildNumber})' : '',
+            style: KidText.body(13, color: AppColors.inkSoft),
+          ),
+        ),
       ],
     );
   }

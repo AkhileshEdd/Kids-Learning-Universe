@@ -36,7 +36,7 @@ class PremiumProductIds {
 }
 
 /// Android application ID, used for the "manage subscription" link.
-const kAndroidPackageName = 'com.kidslearninguniverse.app';
+const kAndroidPackageName = 'com.akhileshedd.kidslearninguniverse';
 
 class PremiumProduct {
   const PremiumProduct({

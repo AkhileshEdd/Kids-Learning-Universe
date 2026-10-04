@@ -14,7 +14,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.kidslearninguniverse.app"
+    namespace = "com.akhileshedd.kidslearninguniverse"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.kidslearninguniverse.app"
+        applicationId = "com.akhileshedd.kidslearninguniverse"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

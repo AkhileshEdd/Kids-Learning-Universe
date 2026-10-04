@@ -49,31 +49,72 @@ flutter analyze
 ### Getting an APK without a local setup
 
 Every push runs the **Android build** GitHub Actions workflow
-(`.github/workflows/android.yml`): it analyzes, tests, and builds a release
-APK and an App Bundle. Download them from the workflow run's **Artifacts**
-section (`kids-learning-universe-apk` / `kids-learning-universe-aab`) and
-install the APK on a phone.
+(`.github/workflows/android.yml`): it analyzes, tests, and builds the APK and
+App Bundle, named with the version (e.g. `kids-learning-universe-1.0.0-1.apk`).
+Download them from the run's **Artifacts** section. They're signed with your
+upload key once the signing secrets below are set, otherwise with a debug key
+(`…-debug-signed.apk`), which is fine for trying the app but not for Google Play.
 
-### Release signing (before uploading to Google Play)
+## Releases
 
-Release builds are signed with the debug key until you add your own upload key:
+- **Package name (application ID):** `com.akhileshedd.kidslearninguniverse`.
+  It can never change after the first upload to Google Play.
+- **Version:** `version: 1.0.0+1` in `pubspec.yaml` means version name
+  **1.0.0** (what parents see) and version code **1** (Android's internal
+  number, which Google Play requires to go up with every upload).
 
-```bash
-keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
+### Releasing an update
 
-Then create `android/key.properties` (it is git-ignored):
+1. Bump the version:
+   ```bash
+   python3 tool/bump_version.py patch   # 1.0.0+1 -> 1.0.1+2 (fixes)
+   python3 tool/bump_version.py minor   # 1.0.1+2 -> 1.1.0+3 (new games, books)
+   ```
+2. Commit, then push a tag that matches the new version:
+   ```bash
+   git commit -am "Release 1.0.1" && git tag v1.0.1 && git push && git push --tags
+   ```
+3. The **Release** workflow (`.github/workflows/release.yml`) tests the app,
+   builds the App Bundle and APK signed with your upload key, checks the
+   signature, and attaches them to a **draft** GitHub release
+   (`v1.0.1`). You can also start it from Actions → Release → Run workflow.
+4. Upload the `.aab` to the Play Console (Production or a testing track).
+
+### Upload key (keep it safe)
+
+Google Play uses **Play App Signing**: Google keeps the key that signs the app
+on phones, and you sign each upload with your **upload key**
+(`kids-learning-universe-upload-key.jks`, alias `upload`). The key and its
+password are never stored in this repository (`*.jks` and
+`android/key.properties` are git-ignored, and the repository is public).
+
+- Keep the `.jks` file and its password in a password manager and a second
+  safe place (e.g. an encrypted backup).
+- If the upload key is ever lost or leaked, the account owner can ask for an
+  upload key reset in Play Console → Test and release → App integrity. The app
+  itself keeps working because Google holds the app signing key.
+
+**Let GitHub sign releases:** in the repository go to Settings → Secrets and
+variables → Actions → *New repository secret* and add:
+
+| Secret | Value |
+| --- | --- |
+| `UPLOAD_KEYSTORE_BASE64` | The keystore file as base64 (`base64 -w0 kids-learning-universe-upload-key.jks`) |
+| `UPLOAD_KEYSTORE_PASSWORD` | The keystore password (also used as the key password) |
+
+GitHub encrypts secrets and never shows them in logs, even though the
+repository is public.
+
+**Signing on your own computer instead:** create `android/key.properties`:
 
 ```properties
+storeFile=/absolute/path/to/kids-learning-universe-upload-key.jks
 storePassword=<password>
 keyPassword=<password>
 keyAlias=upload
-storeFile=/absolute/path/to/upload-keystore.jks
 ```
 
-The application ID is `com.kidslearninguniverse.app` (it can't change after
-the first upload to Google Play, so change it now if you want a different one:
-`android/app/build.gradle.kts` and the `MainActivity.kt` package).
+then run `flutter build appbundle --release`.
 
 ## Premium with Google Play Billing
 
@@ -82,11 +123,14 @@ Premium is sold through Google Play using Google's official
 Play takes the payment, handles taxes, receipts, renewals, refunds and
 cancellations; the app only asks Play what the family owns.
 
-| Plan | Play Console product type | Product ID | Base plan ID |
-| --- | --- | --- | --- |
-| Monthly | Subscription | `klu_premium_monthly` | `monthly` (renews every month) |
-| Yearly | Subscription | `klu_premium_yearly` | `yearly` (renews every year) |
-| Lifetime | One-time product | `klu_premium_lifetime` | — |
+| Plan | Play Console product type | Product ID | Base plan ID | Price |
+| --- | --- | --- | --- | --- |
+| Monthly | Subscription | `klu_premium_monthly` | `monthly` (renews every month) | ₹199 |
+| Yearly | Subscription | `klu_premium_yearly` | `yearly` (renews every year) | ₹999 |
+| Lifetime | One-time product | `klu_premium_lifetime` | — | ₹2,499 |
+
+Prices are set in the Play Console (the app shows whatever Play reports, in
+each parent's currency); the table lists the planned launch prices.
 
 What the app does (`lib/premium/`):
 
@@ -110,13 +154,12 @@ What the app does (`lib/premium/`):
 ### Setting up the products in the Google Play Console
 
 1. **Create the app** in the [Play Console](https://play.google.com/console)
-   with the package name `com.kidslearninguniverse.app`. Under *App content →
+   with the package name `com.akhileshedd.kidslearninguniverse`. Under *App content →
    Target audience*, select the children's age groups (this enrolls the app in
    Google Play's Families policy) and add a privacy policy URL.
 2. **Upload a build** to *Testing → Internal testing*: run
    `flutter build appbundle --release` with your upload key (see *Release
-   signing* above) or use the AAB from the GitHub Actions artifacts once it is
-   signed with your key. Play only lets you create products after a build that
+   key* below) or the AAB from a GitHub release built by the Release workflow. Play only lets you create products after a build that
    uses Play Billing has been uploaded.
 3. **Monetize → Products → Subscriptions → Create subscription**
    - Product ID `klu_premium_monthly`, then *Add base plan*: ID `monthly`,

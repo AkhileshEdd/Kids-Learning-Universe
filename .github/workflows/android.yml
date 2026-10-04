@@ -37,22 +37,65 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Read version
+        id: version
+        run: |
+          v=$(sed -n 's/^version: *//p' pubspec.yaml)
+          echo "name=${v%+*}" >> "$GITHUB_OUTPUT"
+          echo "code=${v#*+}" >> "$GITHUB_OUTPUT"
+
+      # Uses the upload key from the repository secrets when they are set
+      # (see README → Releases). Otherwise builds are signed with a
+      # throwaway debug key: fine for testing, not for Google Play.
+      - name: Set up release signing
+        id: signing
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$UPLOAD_KEYSTORE_BASE64" ] || [ -z "$UPLOAD_KEYSTORE_PASSWORD" ]; then
+            echo "::notice::No upload key secrets: this build is signed with a debug key."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload-key.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/upload-key.jks"
+            echo "storePassword=$UPLOAD_KEYSTORE_PASSWORD"
+            echo "keyPassword=$UPLOAD_KEYSTORE_PASSWORD"
+            echo "keyAlias=upload"
+          } > android/key.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
       - name: Build APK
         run: flutter build apk --release
 
       - name: Build App Bundle (for Google Play)
         run: flutter build appbundle --release
 
+      - name: Collect files
+        run: |
+          base="kids-learning-universe-${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}"
+          [ "${{ steps.signing.outputs.signed }}" = "true" ] || base="$base-debug-signed"
+          mkdir dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/$base.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "dist/$base.aab"
+          ls -la dist
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: kids-learning-universe-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: kids-learning-universe-${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}-apk
+          path: dist/*.apk
           if-no-files-found: error
 
       - name: Upload App Bundle
         uses: actions/upload-artifact@v4
         with:
-          name: kids-learning-universe-aab
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: kids-learning-universe-${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}-aab
+          path: dist/*.aab
           if-no-files-found: error
+
+      - name: Clean up signing files
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/upload-key.jks"
